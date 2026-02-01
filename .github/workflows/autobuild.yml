@@ -1,0 +1,125 @@
+# .github/workflows/autobuild.yml
+
+name: Build Blog and Deploy
+
+# 定义触发条件
+on:
+  push:
+    branches:
+      - main  # 主分支推送时触发
+      - '*'   # 所有其他分支推送时也触发 (用于测试)
+  pull_request:
+    branches:
+      - main  # PR 合并到主分支时触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    # ------------------------------------------------------------------
+    # 【关键修改 1】配置权限：部署 Pages 需要 pages 和 id-token 权限
+    # ------------------------------------------------------------------
+    permissions:
+      contents: write   # 允许提交 .build_manifest.json 回仓库
+      pages: write      # 必须：允许写入 Pages 部署
+      id-token: write   # 必须：用于 OIDC 验证
+      
+    # ------------------------------------------------------------------
+    # 【关键修改 2】设置 Pages 部署环境
+    # ------------------------------------------------------------------
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }} 
+
+    steps:
+    
+    - name: Checkout Repository (Full History)
+      # 必须使用 fetch-depth: 0 获取完整的 Git 历史，这对 autobuild.py 中获取 Git Author Time 至关重要
+      uses: actions/checkout@v4
+      with:
+          fetch-depth: 0
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x' 
+        
+    - name: Cache Python dependencies
+      # 启用 Pip 缓存以加速后续构建
+      uses: actions/cache@v4
+      id: pip-cache
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+        
+    # ------------------------------------------------------------------
+    # ⭐ 核心修复：确保依赖总是被安装
+    # ------------------------------------------------------------------
+    - name: Install Python Dependencies (Ensure YAML is installed)
+      # 即使缓存命中，也应运行此步骤。Pip 会在缓存命中的情况下跳过重新下载，但会完成安装到虚拟环境的步骤。
+      run: pip install -r requirements.txt
+      
+    # ------------------------------------------------------------------
+    # 【新增修复】强制完全重建：如果 requirements.txt 更改，则删除 manifest
+    # ------------------------------------------------------------------
+    - name: Force Full Build if Requirements Changed
+      run: |
+        # 检查 requirements.txt 在上一个提交到当前提交之间是否有内容变化
+        if git diff --name-only HEAD~1 HEAD | grep -q 'requirements.txt'; then
+            echo "::notice file=requirements.txt::requirements.txt has changed. Deleting .build_manifest.json to force a full build."
+            
+            # 如果 manifest 存在，则删除它
+            if [ -f ".build_manifest.json" ]; then
+                rm .build_manifest.json
+                echo "Deleted .build_manifest.json to force full rebuild."
+            fi
+        else
+            echo "requirements.txt unchanged. Proceeding with incremental build."
+        fi
+
+    - name: Run Autobuild Script (and generate manifest)
+      # 运行您的构建脚本。它会生成 _site/ 目录和 .build_manifest.json 文件
+      run: python "autobuild.py"
+
+    # ------------------------------------------------------------------
+    # 【步骤 A】提交增量清单文件回仓库 (用于下次增量构建)
+    # ------------------------------------------------------------------
+    - name: Commit Build Manifest for Incremental Build
+      run: |
+        # 1. 配置 Git 机器人身份
+        git config user.name 'github-actions[bot]'
+        git config user.email 'github-actions[bot]@users.noreply.github.com'
+
+        # 2. 追踪并暂存 manifest 文件
+        git add .build_manifest.json
+        
+        # 3. 检查是否有实际变动。如果没有变动，`git diff` 返回 0
+        if git diff --cached --exit-code; then
+            echo "Manifest file unchanged. Skipping commit."
+        else
+            # 4. 如果有变动，提交并推送
+            git commit -m "chore: [CI] Update build manifest for incremental builds"
+            git push
+        fi
+
+    # ------------------------------------------------------------------
+    # 【部署步骤 B/C/D】GitHub Pages 部署
+    # ------------------------------------------------------------------
+    
+    # 【B】配置 Pages (设置 Pages 专用的 URL 和环境变量)
+    - name: Setup Pages
+      uses: actions/configure-pages@v5
+
+    # 【C】打包构建产物（_site 目录）为 Artifact
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        # 您的构建输出目录
+        path: '_site'
+
+    # 【D】部署到 GitHub Pages
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4

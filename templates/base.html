@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{page_title}} - {{blog_title}}</title>
+    <meta name="description" content="{{blog_description}}">
+    <meta name="author" content="{{blog_author}}">
+    <link rel="canonical" href="{{canonical_url}}">
+    <link rel="stylesheet" href="{{site_root}}/assets/{{css_filename}}">
+    <link rel="alternate" type="application/rss+xml" title="{{blog_title}} RSS Feed" href="{{site_root}}/rss.xml">
+
+    {%- if json_ld_schema -%}
+    <script type="application/ld+json">
+    {{ json_ld_schema | safe }}
+    </script>
+    {%- endif -%}
+
+</head>
+
+<body class="page-{{page_id}}">
+    <a href="#main-content" class="skip-link">跳到主内容</a>
+
+    <header>
+        <div class="header-inner">
+            <a href="{{site_root}}/" class="site-title">{{blog_title}}</a>
+            <!-- 在 base.html 中改进导航 -->
+            <nav aria-label="主导航">
+                <a href="{{site_root}}/" {% if page_id=='index' %}aria-current="page" {% endif %}>首页</a>
+                <a href="{{site_root}}/archive/" {% if page_id=='archive' %}aria-current="page" {% endif %}>归档</a>
+                <a href="{{site_root}}/tags/" {% if page_id=='tags' %}aria-current="page" {% endif %}>标签</a>
+                <a href="{{site_root}}/about/" {% if page_id=='about' %}aria-current="page" {% endif %}>关于</a>
+            </nav>
+        </div>
+    </header>
+
+    <main id="main-content">
+        <div class="main-layout">
+            <div class="content-area">
+                <div class="page-header">
+                    {%- if page_id == 'post' -%}
+                    <h1>{{post.title}}</h1>
+                    <div class="post-meta">
+                        <div class="meta-container">
+                            <span class="meta-date">
+                                {{post_date}}
+                            </span>
+
+                            {% if post_tags %}
+                            <div class="meta-tags">
+                                <ul class="tags-list">
+                                    {% for tag in post_tags %}
+                                    <li><a href="{{tag.link}}" class="tag-badge">{{tag.name}}</a></li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {# 移动端目录 #}
+                    {% if toc_html %}
+                    <details class="mobile-toc">
+                        <summary>📑 目录</summary>
+                        <div class="mobile-toc-content">
+                            {{ toc_html | safe }}
+                        </div>
+                    </details>
+                    {% endif %}
+
+                    {%- endif -%}
+                </div>
+
+                {# --- 列表页面 (首页, 标签详情, 归档) --- #}
+                {%- if page_id == 'index' or page_id == 'tag' or page_id == 'archive' -%}
+
+                {%- if page_id == 'tag' -%}
+                <div class="tag-meta-info">
+                    <h1 class="page-list-title"># {{tag}}</h1>
+                    <p style="color: var(--color-main-subtext); margin-bottom: 20px; font-size: 0.9rem;">共 {{posts |
+                        length}} 篇文章</p>
+                    <a href="{{site_root}}/tags/" class="button button-secondary button-small">← 所有标签</a>
+                </div>
+                <hr style="border: none; border-top: 1px solid var(--color-main-border); margin: 30px 0;">
+                {%- endif -%}
+
+                {%- if page_id != 'archive' -%}
+                <div class="post-list">
+                    {% for post in posts %}
+                    <a href="{{post.link}}" class="post-list-item">
+
+                        <h2 class="post-title">{{post.title}}</h2>
+
+                        <div class="post-list-meta-line">
+                            <span class="meta-date-wrapper">
+                                <span class="date-icon">📅</span>
+                                {{post.date_formatted}}
+                            </span>
+
+                            {% if post.tags %}
+                            <div class="tags-wrapper">
+                                {% for tag in post.tags %}
+                                <span class="tag-badge">🏷️ {{ tag.name }}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        {% if post.excerpt %}
+                        <p class="post-excerpt">{{post.excerpt}}</p>
+                        {% endif %}
+
+                    </a>
+                    {% endfor %}
+                </div>
+                {%- endif -%}
+
+                {%- if page_id == 'index' and posts|length == max_posts_on_index -%}
+                <div class="read-more-link-area">
+                    <a href="{{site_root}}/archive/" class="button button-secondary">查看全部归档 →</a>
+                </div>
+                {%- endif -%}
+
+                {%- endif -%}
+
+                {# --- 正文/归档/标签云内容渲染区 --- #}
+                {%- if content_html -%}
+                <div class="post-content">
+                    {{content_html | safe}}
+                </div>
+                {%- endif -%}
+
+<!-- 版权声明 -->
+{%- if page_id == 'post' and copyright_config.enable -%}
+<div class="post-license">
+    <p>
+        {% if copyright_config.show_license_icon %}
+        <span class="license-icon">
+            {% if copyright_config.type == 'CC_BY_4.0' %}
+                {{ copyright_config.allowed_types['CC_BY_4.0'].icon | safe }}
+            {% elif copyright_config.type == 'CC_BY_SA_4.0' %}
+                {{ copyright_config.allowed_types['CC_BY_SA_4.0'].icon | safe }}
+            {% elif copyright_config.type == 'CC_BY_NC_4.0' %}
+                {{ copyright_config.allowed_types['CC_BY_NC_4.0'].icon | safe }}
+            {% elif copyright_config.type == 'CC_BY_NC_SA_4.0' %}
+                {{ copyright_config.allowed_types['CC_BY_NC_SA_4.0'].icon | safe }}
+            {% elif copyright_config.type == 'CC_BY_NC_ND_4.0' %}
+                {{ copyright_config.allowed_types['CC_BY_NC_ND_4.0'].icon | safe }}
+            {% elif copyright_config.type == 'CC_BY_ND_4.0' %}
+                {{ copyright_config.allowed_types['CC_BY_ND_4.0'].icon | safe }}
+            {% elif copyright_config.type == 'CC_ZERO_1.0' %}
+                {{ copyright_config.allowed_types['CC_ZERO_1.0'].icon | safe }}
+            {% elif copyright_config.type == 'MIT' %}
+                {{ copyright_config.allowed_types['MIT'].icon | safe }}
+            {% elif copyright_config.type == 'BSD_2_CLAUSE' %}
+                {{ copyright_config.allowed_types['BSD_2_CLAUSE'].icon | safe }}
+            {% elif copyright_config.type == 'BSD_3_CLAUSE' %}
+                {{ copyright_config.allowed_types['BSD_3_CLAUSE'].icon | safe }}
+            {% elif copyright_config.type == 'APACHE_2.0' %}
+                {{ copyright_config.allowed_types['APACHE_2.0'].icon | safe }}
+            {% elif copyright_config.type == 'GPL_2.0' %}
+                {{ copyright_config.allowed_types['GPL_2.0'].icon | safe }}
+            {% elif copyright_config.type == 'GPL_3.0' %}
+                {{ copyright_config.allowed_types['GPL_3.0'].icon | safe }}
+            {% elif copyright_config.type == 'LGPL_2.1' %}
+                {{ copyright_config.allowed_types['LGPL_2.1'].icon | safe }}
+            {% elif copyright_config.type == 'LGPL_3.0' %}
+                {{ copyright_config.allowed_types['LGPL_3.0'].icon | safe }}
+            {% elif copyright_config.type == 'MPL_2.0' %}
+                {{ copyright_config.allowed_types['MPL_2.0'].icon | safe }}
+            {% elif copyright_config.type == 'EPL_2.0' %}
+                {{ copyright_config.allowed_types['EPL_2.0'].icon | safe }}
+            {% elif copyright_config.type == 'UNLICENSE' %}
+                {{ copyright_config.allowed_types['UNLICENSE'].icon | safe }}
+            {% elif copyright_config.type == 'WTFPL' %}
+                {{ copyright_config.allowed_types['WTFPL'].icon | safe }}
+            {% elif copyright_config.type == 'AGPL_3.0' %}
+                {{ copyright_config.allowed_types['AGPL_3.0'].icon | safe }}
+            {% elif copyright_config.type == 'CUSTOM' %}
+                {{ copyright_config.allowed_types['CUSTOM'].icon | safe }}
+            {% endif %}
+        </span>
+        {% endif %}
+        {{ copyright_notice(post.title, blog_author, canonical_url) | safe }}
+    </p>
+    
+    {# 只有当 show_standard_format 为 True 时才显示 additional_note #}
+    {% if copyright_config.additional_note and copyright_config.show_standard_format %}
+    <p>{{ copyright_config.additional_note }}</p>
+    {% endif %}
+    
+    {% if copyright_config.show_standard_format %}
+    <div class="license-format-code">
+        <code>
+            {{ copyright_format(post.title, blog_author, canonical_url) | safe }}
+        </code>
+    </div>
+    {% endif %}
+</div>
+{%- endif -%}
+
+                {# 文章上/下导航 #}
+                {%- if page_id == 'post' and (prev_post_nav or next_post_nav) -%}
+                <nav class="post-navigation">
+                    {% if prev_post_nav %}
+                    <a href="{{prev_post_nav.link}}" class="nav-link nav-prev">
+                        <small>← 上一篇 (较新)</small>
+                        <h3>{{prev_post_nav.title}}</h3>
+                    </a>
+                    {% else %}
+                    <div class="nav-link-placeholder"></div>
+                    {% endif %}
+
+                    {% if next_post_nav %}
+                    <a href="{{next_post_nav.link}}" class="nav-link nav-next">
+                        <small>下一篇 (较旧) →</small>
+                        <h3>{{next_post_nav.title}}</h3>
+                    </a>
+                    {% else %}
+                    <div class="nav-link-placeholder"></div>
+                    {% endif %}
+                </nav>
+                {%- endif -%}
+
+            </div>
+
+            {%- if page_id == 'post' and toc_html -%}
+            <div class="toc-area">
+                <h3>目录</h3>
+                {{toc_html | safe}}
+            </div>
+            {%- endif -%}
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-left">
+                <span class="copyright-info">&copy; {{current_year}} {{blog_author}}.</span>
+                {%- if footer_content_type == 'build_time' -%}
+                <span class="build-info">{{footer_time_info}}</span>
+                {%- elif footer_content_type == 'custom' -%}
+                <span class="custom-footer-text">{{footer_custom_text}}</span>
+                {%- elif footer_content_type == 'empty' -%}
+                <!-- 空内容，不显示任何内容 -->
+                {%- endif -%}
+            </div>
+            <div class="footer-right">
+                <a href="{{site_root}}/rss.xml">RSS 订阅</a>
+                <a href="#main-content" class="back-to-top">返回顶部</a>
+            </div>
+        </div>
+    </footer>
+</body>
+
+</html>
