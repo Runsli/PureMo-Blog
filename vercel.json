@@ -1,0 +1,5 @@
+{
+  "buildCommand": "python autobuild.py",
+  "outputDirectory": "_site",
+  "framework": null
+}
